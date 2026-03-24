@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光合作用增产思路互动平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/hydrogen-js-sdk@2.2.3/dist/Bmob-2.2.3.min.js"></script>
+    <style>
+        /* 继承您提供的清新绿色风格 */
+        body { background: #e8f3e4; font-family: sans-serif; padding: 20px; color: #1c4d2d; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+        .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        h2 { border-left: 5px solid #2b7a3e; padding-left: 10px; margin-bottom: 15px; font-size: 1.2rem; }
+        .form-item { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        input, textarea { width: 100%; border: 1.5px solid #cbe5c6; border-radius: 8px; padding: 8px; outline: none; }
+        .btn { background: #2b7a3e; color: white; border: none; width: 100%; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        /* 看板样式 */
+        .board { height: 80vh; overflow-y: auto; padding-right: 10px; }
+        .sub-card { background: #f9fdf8; border-left: 5px solid #6fbf4c; padding: 15px; margin-bottom: 15px; border-radius: 10px; font-size: 0.85rem; }
+        .sub-header { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dashed #cfdec7; padding-bottom: 5px; }
+        .dim-label { color: #2b7a3e; font-weight: bold; margin-top: 4px; display: block; }
+        
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>🌿 提交增产方案</h2>
+        <div class="form-item">
+            <label>小组编号/名称</label>
+            <input type="text" id="groupName" placeholder="例如：第一小组">
+        </div>
+        <div class="form-item">
+            <label>🌾 原料调控 (CO₂/水)</label>
+            <textarea id="rawMaterial" rows="2"></textarea>
+        </div>
+        <div class="form-item">
+            <label>☀️ 条件调控 (光照/温度)</label>
+            <textarea id="condition" rows="2"></textarea>
+        </div>
+        <div class="form-item">
+            <label>🌿 空间优化 (光合面积)</label>
+            <textarea id="spatial" rows="2"></textarea>
+        </div>
+        <div class="form-item">
+            <label>✨ 其他创新思路</label>
+            <textarea id="other" rows="2"></textarea>
+        </div>
+        <button class="btn" onclick="sendToCloud()">🚀 立即提交</button>
+    </div>
+
+    <div class="card">
+        <h2>🧑‍🏫 实时看板 <span id="sync" style="font-size: 0.7rem; color: #666; font-weight: normal;">(正在同步...)</span></h2>
+        <div id="boardArea" class="board">
+            <p style="text-align: center; color: #999; margin-top: 50px;">等待学生提交中...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 请在此处填入你的 Bmob 密钥
+    Bmob.initialize("82e391419403c960", "342815eb94da31f19ed7a90a8d051713");
+
+    // 提交逻辑
+    function sendToCloud() {
+        const data = {
+            groupName: document.getElementById('groupName').value.trim(),
+            rawMaterial: document.getElementById('rawMaterial').value.trim(),
+            condition: document.getElementById('condition').value.trim(),
+            spatial: document.getElementById('spatial').value.trim(),
+            other: document.getElementById('other').value.trim()
+        };
+
+        if(!data.groupName || !data.rawMaterial) return alert("请至少填写小组名和原料思路！");
+
+        const query = Bmob.Query("PhotosynthesisData");
+        for(let key in data) query.set(key, data[key]);
+        
+        query.save().then(res => {
+            alert("✅ 方案已成功推送到教师看板！");
+            // 提交后清空，方便下一轮
+            document.querySelectorAll('textarea, input').forEach(el => el.value = '');
+        }).catch(err => alert("提交失败，请检查网络"));
+    }
+
+    // 实时获取数据逻辑
+    function refreshBoard() {
+        const query = Bmob.Query("PhotosynthesisData");
+        query.order("-createdAt"); // 最新的在最上面
+        query.find().then(results => {
+            if(results.length === 0) return;
+            let html = '';
+            results.forEach(item => {
+                html += `
+                <div class="sub-card">
+                    <div class="sub-header">
+                        <strong>📌 ${item.groupName}</strong>
+                        <small style="color:#999">${item.createdAt.split(' ')[1]}</small>
+                    </div>
+                    <span class="dim-label">🌾 原料:</span> ${item.rawMaterial || '-'}
+                    <span class="dim-label">☀️ 条件:</span> ${item.condition || '-'}
+                    <span class="dim-label">🌿 空间:</span> ${item.spatial || '-'}
+                    <span class="dim-label">✨ 创新:</span> ${item.other || '-'}
+                </div>`;
+            });
+            document.getElementById('boardArea').innerHTML = html;
+            document.getElementById('sync').innerText = "(刚刚已更新)";
+        });
+    }
+
+    // 每 5 秒自动同步一次
+    setInterval(refreshBoard, 5000);
+    refreshBoard(); 
+</script>
+
+</body>
+</html>
